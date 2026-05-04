@@ -333,6 +333,18 @@ function Invoke-VddInstall {
         Write-Log "수동: 'C:\VirtualDisplayDriver\VDD Control.exe' 를 실행해 한 번 디바이스 추가 후 재실행" 'WARN'
     }
 
+    # 5b) 디바이스 생성 후 드라이버 install 재호출.
+    # 첫 pnputil /add-driver /install 시점엔 매칭할 디바이스가 없어 setupapi 가
+    # "Unable to find any matching devices" 로 끝나며 UMDF dll 복사 + 서비스 바인딩이 누락된다.
+    # 이 경우 디바이스 enum 키의 Service 값이 비어 있고 모니터 자식 노드가 생성되지 않아
+    # 디스플레이 설정에 가상 모니터가 보이지 않는다. nefconw 가 디바이스를 만든 후
+    # 같은 명령을 다시 호출하면 매칭되어 install 이 완료된다.
+    # (이미 install 완료된 시스템에서는 no-op)
+    if (Test-VddDeviceInstalled) {
+        Write-Log "디바이스 등록 후 드라이버 install 재시도 (UMDF 바인딩 완료 목적)"
+        Install-VddDriverPackage -InfPath $inf.FullName -Ctx $Ctx
+    }
+
     # 6) vdd_settings.xml 위치 안내 (사용자가 수동 편집할 수 있도록)
     $settings = Get-ChildItem -Path $extractRoot -Recurse -Filter 'vdd_settings.xml' -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($settings) {
