@@ -267,6 +267,77 @@ function Install-VddRootDevice {
     Write-Log "수동 추가: 장치 관리자 -> 동작 -> 레거시 하드웨어 추가 -> 'MttVDD' 또는 'IddSampleDriver' 선택" 'WARN'
 }
 
+function Set-VddMonitorIdle {
+    <#
+    .SYNOPSIS
+        VDD 모니터를 데스크톱에서 분리(비활성)해 "대기 상태" 로 만든다.
+    .DESCRIPTION
+        VDD 24.12.24 는 install 직후 자동으로 가상 모니터를 데스크톱에 부착한다.
+        이 상태로 setup 을 끝내면 이미 띄워져 있던 다른 IDD (예: Parsec VDA) 의
+        모니터가 분리되거나 데스크톱 구성이 흐트러지는 부작용이 생긴다.
+
+        의도한 런타임 흐름은 do.ps1 가 Sunshine 접속 시점에 모니터를 활성화하고
+        undo.ps1 가 종료 시 비활성화하는 것이므로, setup 종료 시점에는 VDD 모니터가
+        비활성 상태여야 한다. 본 함수는 MultiMonitorTool /disable 로 어댑터는 켜둔
+        채 모니터만 분리한다 (do.ps1 의 Find-VirtualMonitor 는 비활성 모니터도
+        목록에서 찾을 수 있어야 하므로 어댑터 자체를 disable 하지 않는다).
+
+        안전장치: VDD 외 활성 디스플레이가 하나도 없으면 (헤드리스 환경) 비활성화를
+        건너뛴다. 그렇지 않으면 데스크톱이 완전히 사라진다.
+    #>
+    [CmdletBinding()]
+    param([Parameter(Mandatory)] $Ctx)
+
+    if (Test-IsDryRun $Ctx) {
+        Write-Log "[DryRun] VDD 모니터를 비활성(대기) 상태로 전환"
+        return
+    }
+
+    $mmt = Join-Path $Ctx.ToolsRoot 'MultiMonitorTool.exe'
+    if (-not (Test-Path $mmt)) {
+        Write-Log "MultiMonitorTool 미배치 — VDD 대기 상태 전환 건너뜀" 'WARN'
+        return
+    }
+
+    # 모니터 enumerate
+    $tmp = Join-Path $env:TEMP "vdd-idle-$PID.csv"
+    if (Test-Path $tmp) { Remove-Item $tmp -Force }
+    Start-Process -FilePath $mmt -ArgumentList @('/scomma', "`"$tmp`"") -Wait -WindowStyle Hidden | Out-Null
+    Start-Sleep -Milliseconds 500
+    if (-not (Test-Path $tmp)) {
+        Write-Log "MultiMonitorTool /scomma 출력 실패 — VDD 대기 전환 건너뜀" 'WARN'
+        return
+    }
+    $rows = Import-Csv $tmp
+    Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+
+    $isVdd = {
+        param($m)
+        ($m.'Monitor Name' -and $m.'Monitor Name' -match 'VDD by MTT|Virtual Display') -or
+        ($m.'Monitor ID'   -and $m.'Monitor ID'   -match '^MONITOR\\(MTT|IDD)')
+    }
+    $vddMon = $rows | Where-Object { & $isVdd $_ } | Select-Object -First 1
+    if (-not $vddMon) {
+        Write-Log "VDD 모니터가 MMT 목록에 없음 — 이미 분리된 상태로 간주" 'INFO'
+        return
+    }
+    if ($vddMon.Active -ne 'Yes') {
+        Write-Log "VDD 모니터 이미 비활성 상태"
+        return
+    }
+
+    $otherActive = $rows | Where-Object { $_.Active -eq 'Yes' -and -not (& $isVdd $_) }
+    if (-not $otherActive) {
+        Write-Log "VDD 외 활성 디스플레이가 없어 대기 상태 전환 건너뜀 (헤드리스 환경 가정 — do.ps1 이 첫 접속 시 활성화)" 'WARN'
+        return
+    }
+
+    $key = if ($vddMon.'Monitor ID') { $vddMon.'Monitor ID' } else { $vddMon.Name }
+    Write-Log "VDD 모니터 비활성(대기) 전환: $($vddMon.'Monitor Name') ($key)"
+    Start-Process -FilePath $mmt -ArgumentList @('/disable', "`"$key`"") -Wait -WindowStyle Hidden | Out-Null
+    Start-Sleep -Milliseconds 500
+}
+
 function Invoke-VddInstall {
     [CmdletBinding()]
     param([Parameter(Mandatory)] $Ctx)

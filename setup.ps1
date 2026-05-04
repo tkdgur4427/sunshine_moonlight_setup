@@ -129,6 +129,13 @@ $phases = @(
             }
         } },
     @{ Name='보조 도구 다운로드';   Fn={ Invoke-ToolsDownload      -Ctx $Ctx } },
+    @{ Name='VDD 모니터 대기 상태'; Fn={
+            if ($Ctx.SkipVdd) {
+                Write-Log "VDD 단계 스킵됨 — 대기 상태 전환도 스킵"
+            } else {
+                Set-VddMonitorIdle -Ctx $Ctx
+            }
+        } },
     @{ Name='Tailscale 설치';       Fn={
             if ($Ctx.InstallTailscale) {
                 Invoke-TailscaleInstall -Ctx $Ctx
