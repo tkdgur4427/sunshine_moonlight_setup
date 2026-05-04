@@ -1,0 +1,15 @@
+# 다운로드 중간 파일
+*.partial
+*.tmp
+
+# 백업
+*.bak.*
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# 에디터
+.vscode/
+.idea/
+*.swp
