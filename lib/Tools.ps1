@@ -91,7 +91,7 @@ function Deploy-RuntimeScripts {
     $userCfg = Join-Path $dst 'config.json'
     if (-not (Test-Path $userCfg)) {
         $default = [ordered]@{
-            virtual_display_match  = 'Virtual Display'
+            virtual_display_match  = 'Virtual Display|VDD by MTT'
             disable_other_displays = $false
             default_width          = 1920
             default_height         = 1080

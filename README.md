@@ -126,6 +126,16 @@ Get-PnpDevice | Where-Object { $_.HardwareID -match 'MttVDD|IddSampleDriver' }
 - 결과가 없으면 재부팅 후 다시 확인
 - 그래도 없으면 장치 관리자 → 동작 → "레거시 하드웨어 추가" → "목록에서 직접 선택" → "디스플레이 어댑터" → 디스크 있음 → `C:\VirtualDisplayDriver` 의 INF 선택
 
+### `do.ps1` 가 "가상 디스플레이를 찾을 수 없습니다" 로 실패해요
+
+VDD 버전마다 가상 모니터의 표시 이름이 다릅니다 (예: 신 MttVDD = "VDD by MTT", 구 IddSample = "Virtual Display"). `C:\sunshine-tools\config.json` 의 `virtual_display_match` 정규식을 실제 이름에 맞게 조정하세요.
+
+```powershell
+# 실제 모니터 이름 확인
+& "C:\sunshine-tools\MultiMonitorTool.exe" /scomma "$env:TEMP\m.csv"
+notepad "$env:TEMP\m.csv"   # "Monitor Name" 컬럼 확인
+```
+
 ### `do.ps1` 가 호출되지 않아요
 
 Sunshine 웹 UI → Applications → Desktop → Edit → "Command Preparations" 항목에 다음이 있어야 한다.

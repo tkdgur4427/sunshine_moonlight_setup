@@ -36,7 +36,8 @@ function Write-RuntimeLog {
 function Read-RuntimeConfig {
     $cfgPath = Join-Path (Get-ToolsRoot) 'config.json'
     $defaults = [pscustomobject]@{
-        virtual_display_match  = 'Virtual Display'
+        # MTT (MikeTheTech) 신 VDD 는 'VDD by MTT', 구 IddSample 은 'Virtual Display' 표기
+        virtual_display_match  = 'Virtual Display|VDD by MTT'
         disable_other_displays = $false
         default_width          = 1920
         default_height         = 1080
@@ -85,7 +86,7 @@ function Find-VirtualMonitor {
     $list = Get-MonitorList
     $hit = $list | Where-Object {
         ($_.'Monitor Name' -and $_.'Monitor Name' -match $Pattern) -or
-        ($_.'Monitor ID'   -and $_.'Monitor ID'   -match 'MttVDD|IddSampleDriver')
+        ($_.'Monitor ID'   -and $_.'Monitor ID'   -match '^MONITOR\\(MTT|IDD)')
     } | Select-Object -First 1
     return $hit
 }
@@ -98,7 +99,7 @@ function Find-OtherActiveMonitors {
         $_.Active -eq 'Yes' -and
         -not (
             ($_.'Monitor Name' -and $_.'Monitor Name' -match $VirtualPattern) -or
-            ($_.'Monitor ID'   -and $_.'Monitor ID'   -match 'MttVDD|IddSampleDriver')
+            ($_.'Monitor ID'   -and $_.'Monitor ID'   -match '^MONITOR\\(MTT|IDD)')
         )
     }
 }
